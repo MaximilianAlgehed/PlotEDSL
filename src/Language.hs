@@ -36,6 +36,7 @@ compileMatplotlib, compileWeb :: Layout Plot -> String
 compileMatplotlib layout = unlines $
                            ["import matplotlib.pyplot as plt",
                             "import numpy as np",
+                            "from matplotlib.backends.backend_pdf import PdfPages",
                             "def plot(arg, pdf):"]
                             ++ (map ("    "++) $
                             ["plt.figure()"]++(compileLayout (gridSize layout) (toList (positionsAndSpans layout)))
