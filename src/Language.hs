@@ -33,6 +33,17 @@ compileMatplotlib, compileWeb :: Layout Plot -> String
 compileMatplotlib = undefined
 compileWeb = undefined
 
+-- | Compile a plot
+compileMatplotlibPlot :: Plot -> [String]
+compileMatplotlibPlot (Line arr) = ["plt.plot("++(compileMatplotlibArray arr)++")"]
+compileMatplotlibPlot (Scatter arr arrr) = ["plt.scatter("++(compileMatplotlibArray arr)++","++(compileMatplotlibArray arrr)++")"]
+compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++"0.5)",
+                                   "plt.xticks(np.array(range(len("++array++")))+0.25, np.array(range(len("++array++"))))"]
+    where
+        array = compileMatplotlibArray arr
+compileMatplotlibPlot (Table _ _) = undefined
+compileMatplotlibPlot (Text s) = ["plt.text(0, 1, "++(show s)++")"]
+
 -- | Compile an index into a matplotlib string
 compileMatplotlibIndex :: Index -> String
 compileMatplotlibIndex (Direct i)     = show i
