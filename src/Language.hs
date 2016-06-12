@@ -46,4 +46,8 @@ gridSize (Besides l l') = (max x x', y+y')
 
 -- | Compute the column and row spans of the layout elements
 spans :: Layout a -> Layout (a, (Int, Int))
-spans = undefined
+spans layout = spansHelper (gridSize layout) layout
+    where
+        spansHelper (x, y) (An a)       = An (a, (x, y))
+        spansHelper (x, y) (Above l l') = Above (spansHelper (x, y `div` 2) l) (spansHelper (x, y `div` 2) l')
+        spansHelper (x, y) (Besides l l') = Besides (spansHelper (x`div`2, y) l) (spansHelper (x`div`2, y) l')
