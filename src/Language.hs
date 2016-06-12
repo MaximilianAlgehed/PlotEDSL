@@ -35,23 +35,23 @@ compileWeb = undefined
 
 -- | Compile an index into a matplotlib string
 compileMatplotlibIndex :: Index -> String
-compileMatplotlibIndex (Direct i) = show i
-compileMatplotlibIndex (Length arr) = "len("++(compileMatplotlibArray arr)++")"
+compileMatplotlibIndex (Direct i)     = show i
+compileMatplotlibIndex (Length arr)   = "len("++(compileMatplotlibArray arr)++")"
 compileMatplotlibIndex (P indx indxx) = (compileMatplotlibIndex indx) ++ "+" ++ (compileMatplotlibIndex indxx)
 compileMatplotlibIndex (M indx indxx) = (compileMatplotlibIndex indx) ++ "-" ++ (compileMatplotlibIndex indxx)
 compileMatplotlibIndex (T indx indxx) = (compileMatplotlibIndex indx) ++ "*" ++ (compileMatplotlibIndex indxx)
 
 -- | Compile an array into a matplotlib string
 compileMatplotlibArray :: Array -> String
-compileMatplotlibArray Argument = "arg"
-compileMatplotlibArray (IndexOf arr indx) = (compileMatplotlibArray arr) ++ "["++(compileMatplotlibIndex indx)++"]"
+compileMatplotlibArray Argument               = "arg"
+compileMatplotlibArray (IndexOf arr indx)     = (compileMatplotlibArray arr) ++ "["++(compileMatplotlibIndex indx)++"]"
 compileMatplotlibArray (Range indx indxx arr) =
     (compileMatplotlibArray arr) ++ "["++(compileMatplotlibIndex indx)++":"++(compileMatplotlibIndex indxx)++"]"
 
 -- | Compute the granularity of the grid required by a layout
 gridSize :: Layout a -> (Int, Int)
-gridSize (An a)       = (1, 1)
-gridSize (Above l l') = (x+x', max y y')
+gridSize (An a)         = (1, 1)
+gridSize (Above l l')   = (x+x', max y y')
     where
         (x, y) = gridSize l
         (x', y') = gridSize l'
@@ -64,10 +64,22 @@ gridSize (Besides l l') = (max x x', y+y')
 spans :: Layout a -> Layout (a, (Int, Int))
 spans layout = spansHelper (gridSize layout) layout
     where
-        spansHelper (x, y) (An a)       = An (a, (x, y))
+        spansHelper p (An a)       = An (a, p)
         spansHelper (x, y) (Above l l') = Above (spansHelper (x, y `div` 2) l) (spansHelper (x, y `div` 2) l')
         spansHelper (x, y) (Besides l l') = Besides (spansHelper (x`div`2, y) l) (spansHelper (x`div`2, y) l')
 
 -- | Compute the position of a layout element
 positions :: Layout a -> Layout (a, (Int, Int))
-positions = undefined
+positions layout = positionsHelper (0, 0) (spans layout)
+    where
+        height (An (a, (_, y))) = y
+        height (Besides l l') = max (height l) (height l')
+        height (Above l l') = (height l) + (height l')
+
+        width (An (a, (x, _))) = x
+        width (Besides l l') = (width l) + (width l')
+        width (Above l l') = max (width l) (width l')
+
+        positionsHelper p (An (a, _)) = An (a, p)
+        positionsHelper (x, y) (Above l l') = Above (positionsHelper (x, y) l) (positionsHelper (x, y+(height l)) l')
+        positionsHelper (x, y) (Besides l l') = Besides (positionsHelper (x, y) l) (positionsHelper (x+(width l), y) l')
