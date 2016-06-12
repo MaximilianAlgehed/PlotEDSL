@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveFoldable #-}
+import Data.Foldable
+
 -- | A representation of indecies
 data Index = Direct Int | Length Array | P Index Index | M Index Index | T Index Index deriving (Eq, Show)
 
@@ -18,7 +21,7 @@ len = Length
 range (a, b) arr = Range a b arr
 
 -- | Models data layouts
-data Layout a = An a | Above (Layout a) (Layout a) | Besides (Layout a) (Layout a) deriving (Eq, Show)
+data Layout a = An a | Above (Layout a) (Layout a) | Besides (Layout a) (Layout a) deriving (Eq, Show, Foldable)
 
 -- | Some nice combinators
 plot = An
@@ -30,7 +33,21 @@ data Plot = Line Array | Scatter Array Array | Bar Array | Table [String] Array 
 
 -- | Compile the representations to strings that can be used on the web and in matplotlib
 compileMatplotlib, compileWeb :: Layout Plot -> String
-compileMatplotlib = undefined
+compileMatplotlib layout = unlines $
+                           ["import matplotlib.pyplot as plt",
+                            "import numpy as np",
+                            "def plot(arg, pdf):"]
+                            ++ (map ("    "++) $
+                            ["plt.figure()"]++(compileLayout (gridSize layout) (toList (positionsAndSpans layout)))
+                            ++ ["pdf.savefig()", "plt.close()"])
+    where
+        compileLayout _ [] = []
+        compileLayout grid ((plt, pos, spans):xs) =
+            ["plt.subplot2grid("++(show grid)++","++(show pos)++",rowspan="++(show (fst spans))++",colspan="++(show (snd spans))++")"]
+            ++
+            (compileMatplotlibPlot plt)
+            ++
+            (compileLayout grid xs)
 compileWeb = undefined
 
 -- | Compile a plot
@@ -62,35 +79,35 @@ compileMatplotlibArray (Range indx indxx arr) =
 -- | Compute the granularity of the grid required by a layout
 gridSize :: Layout a -> (Int, Int)
 gridSize (An a)         = (1, 1)
-gridSize (Above l l')   = (x+x', max y y')
+gridSize (Above l l')   = (y+y', max x x')
     where
-        (x, y) = gridSize l
-        (x', y') = gridSize l'
-gridSize (Besides l l') = (max x x', y+y')
+        (y, x) = gridSize l
+        (y', x') = gridSize l'
+gridSize (Besides l l') = (max y y', x+x')
     where
-        (x, y) = gridSize l
-        (x', y') = gridSize l'
+        (y, x) = gridSize l
+        (y', x') = gridSize l'
 
 -- | Compute the column and row spans of the layout elements
 spans :: Layout a -> Layout (a, (Int, Int))
 spans layout = spansHelper (gridSize layout) layout
     where
         spansHelper p (An a)       = An (a, p)
-        spansHelper (x, y) (Above l l') = Above (spansHelper (x, y `div` 2) l) (spansHelper (x, y `div` 2) l')
-        spansHelper (x, y) (Besides l l') = Besides (spansHelper (x`div`2, y) l) (spansHelper (x`div`2, y) l')
+        spansHelper (y, x) (Above l l') = Above (spansHelper (y `div` 2, x) l) (spansHelper (y `div` 2, x) l')
+        spansHelper (y, x) (Besides l l') = Besides (spansHelper (y, x`div`2) l) (spansHelper (y, x`div`2) l')
 
 -- | Compute the position of a layout element
-positions :: Layout a -> Layout (a, (Int, Int))
-positions layout = positionsHelper (0, 0) (spans layout)
+positionsAndSpans :: Layout a -> Layout (a, (Int, Int), (Int, Int))
+positionsAndSpans layout = positionsHelper (0, 0) (spans layout)
     where
-        height (An (a, (_, y))) = y
+        height (An (a, (y, _))) = y
         height (Besides l l') = max (height l) (height l')
         height (Above l l') = (height l) + (height l')
 
-        width (An (a, (x, _))) = x
+        width (An (a, (_, x))) = x
         width (Besides l l') = (width l) + (width l')
         width (Above l l') = max (width l) (width l')
 
-        positionsHelper p (An (a, _)) = An (a, p)
-        positionsHelper (x, y) (Above l l') = Above (positionsHelper (x, y) l) (positionsHelper (x, y+(height l)) l')
-        positionsHelper (x, y) (Besides l l') = Besides (positionsHelper (x, y) l) (positionsHelper (x+(width l), y) l')
+        positionsHelper p (An (a, ps)) = An (a, p, ps)
+        positionsHelper (y, x) (Above l l') = Above (positionsHelper (y, x) l) (positionsHelper (y+(height l), x) l')
+        positionsHelper (y, x) (Besides l l') = Besides (positionsHelper (y, x) l) (positionsHelper (y, x+(width l)) l')
