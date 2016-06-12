@@ -14,6 +14,7 @@ data Array = Argument | IndexOf Array Index | Range Index Index Array deriving (
 -- | Some combinators for describing arrays
 arg = Argument
 (!) = IndexOf
+len = Length
 range (a, b) arr = Range a b arr
 
 -- | Models data layouts
@@ -31,6 +32,21 @@ data Plot = Line Array | Scatter Array Array | Bar Array | Table [String] Array 
 compileMatplotlib, compileWeb :: Layout Plot -> String
 compileMatplotlib = undefined
 compileWeb = undefined
+
+-- | Compile an index into a matplotlib string
+compileMatplotlibIndex :: Index -> String
+compileMatplotlibIndex (Direct i) = show i
+compileMatplotlibIndex (Length arr) = "len("++(compileMatplotlibArray arr)++")"
+compileMatplotlibIndex (P indx indxx) = (compileMatplotlibIndex indx) ++ "+" ++ (compileMatplotlibIndex indxx)
+compileMatplotlibIndex (M indx indxx) = (compileMatplotlibIndex indx) ++ "-" ++ (compileMatplotlibIndex indxx)
+compileMatplotlibIndex (T indx indxx) = (compileMatplotlibIndex indx) ++ "*" ++ (compileMatplotlibIndex indxx)
+
+-- | Compile an array into a matplotlib string
+compileMatplotlibArray :: Array -> String
+compileMatplotlibArray Argument = "arg"
+compileMatplotlibArray (IndexOf arr indx) = (compileMatplotlibArray arr) ++ "["++(compileMatplotlibIndex indx)++"]"
+compileMatplotlibArray (Range indx indxx arr) =
+    (compileMatplotlibArray arr) ++ "["++(compileMatplotlibIndex indx)++":"++(compileMatplotlibIndex indxx)++"]"
 
 -- | Compute the granularity of the grid required by a layout
 gridSize :: Layout a -> (Int, Int)
@@ -51,3 +67,7 @@ spans layout = spansHelper (gridSize layout) layout
         spansHelper (x, y) (An a)       = An (a, (x, y))
         spansHelper (x, y) (Above l l') = Above (spansHelper (x, y `div` 2) l) (spansHelper (x, y `div` 2) l')
         spansHelper (x, y) (Besides l l') = Besides (spansHelper (x`div`2, y) l) (spansHelper (x`div`2, y) l')
+
+-- | Compute the position of a layout element
+positions :: Layout a -> Layout (a, (Int, Int))
+positions = undefined
