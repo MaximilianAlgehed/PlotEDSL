@@ -21,7 +21,7 @@ range (a, b) arr = Range a b arr
 data Layout a = An a | Above (Layout a) (Layout a) | Besides (Layout a) (Layout a) deriving (Eq, Show)
 
 -- | Some nice combinators
-put = An
+plot = An
 ($$) = Above
 (<>) = Besides
 
