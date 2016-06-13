@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFoldable #-}
 import Data.Foldable
+import Control.Monad.State
 
 -- | A representation of indecies
 data Index = Direct Int | Length Array | P Index Index | M Index Index | T Index Index deriving (Eq, Show)
@@ -52,8 +53,43 @@ compileMatplotlib layout = unlines $
             (compileLayout grid xs)
 
 -- | Compile a layout to a string representing it's javascript and a string representing it's html table
-compileWeb :: Layout Plot -> (String, String)
-compileWeb = undefined
+-- | wrapped in a state monad to make sure every 
+compileWeb :: Layout Plot -> State Int (String, String)
+compileWeb p = compileWebHelper (toList (positionsAndSpans p))
+    where
+        compileWebHelper :: [(Plot, (Int, Int), (Int, Int))] -> State Int (String, String)
+        compileWebHelper ps = do
+            i <- get -- The first reference point
+            put (i+length ps) -- The last reference point+1
+            let htmlTable = unlines $ zipWith htmlhelper ps [i..]
+            let js = unlines $ zipWith jshelper ps [i..] 
+            return (js, htmlPreamble++htmlTable++htmlPostamble)
+
+        htmlPreamble = ""
+        htmlPostamble = ""
+        htmlhelper _ i = "<div id='id"++(show i)++"' style='width 900px; height=500px'></div>"
+
+        jshelper (plt, _, _) i = compileWebPlot plt i
+
+-- | Compile a plot
+compileWebPlot :: Plot -> Int -> String
+compileWebPlot (Line arr) i = "plotLine("++(compileWebArray arr)++",document.getElementById(id"++(show i)++"),'Line')"
+compileWebPlot (Scatter arr arrr) i = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById(id"++(show i)++"),'Scatter')"
+compileWebPlot (Bar arr) i = "plotBar("++(compileWebArray arr)++",document.getElementById(id"++(show i)++"),'Bar')"
+
+-- | Compile an index
+compileWebIndex :: Index -> String
+compileWebIndex (Direct i) = show i
+compileWebIndex (Length arr) = (compileWebArray arr)++".length"
+compileWebIndex (P indx indxx) = "("++(compileWebIndex indx) ++ "+" ++ (compileWebIndex indxx)++")"
+compileWebIndex (M indx indxx) = "("++(compileWebIndex indx) ++ "-" ++ (compileWebIndex indxx)++")"
+compileWebIndex (T indx indxx) = "("++(compileWebIndex indx) ++ "-" ++ (compileWebIndex indxx)++")"
+
+-- | Compile an array
+compileWebArray :: Array -> String
+compileWebArray Argument = "data"
+compileWebArray (IndexOf arr indx) = (compileWebArray arr) ++ "["++(compileWebIndex indx)++"]"
+compileWebArray (Range indx indxx arr) = (compileWebArray arr) ++ ".slice("++(compileWebIndex indx)++","++(compileWebIndex indxx)++")"
 
 -- | Compile a plot
 compileMatplotlibPlot :: Plot -> [String]
@@ -70,9 +106,9 @@ compileMatplotlibPlot (Text s) = ["plt.text(0, 1, "++(show s)++")"]
 compileMatplotlibIndex :: Index -> String
 compileMatplotlibIndex (Direct i)     = show i
 compileMatplotlibIndex (Length arr)   = "len("++(compileMatplotlibArray arr)++")"
-compileMatplotlibIndex (P indx indxx) = (compileMatplotlibIndex indx) ++ "+" ++ (compileMatplotlibIndex indxx)
-compileMatplotlibIndex (M indx indxx) = (compileMatplotlibIndex indx) ++ "-" ++ (compileMatplotlibIndex indxx)
-compileMatplotlibIndex (T indx indxx) = (compileMatplotlibIndex indx) ++ "*" ++ (compileMatplotlibIndex indxx)
+compileMatplotlibIndex (P indx indxx) = "("++(compileMatplotlibIndex indx) ++ "+" ++ (compileMatplotlibIndex indxx)++")"
+compileMatplotlibIndex (M indx indxx) = "("++(compileMatplotlibIndex indx) ++ "-" ++ (compileMatplotlibIndex indxx)++")"
+compileMatplotlibIndex (T indx indxx) = "("++(compileMatplotlibIndex indx) ++ "*" ++ (compileMatplotlibIndex indxx)++")"
 
 -- | Compile an array into a matplotlib string
 compileMatplotlibArray :: Array -> String
