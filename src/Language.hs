@@ -25,6 +25,7 @@ data Layout a = An a | Above (Layout a) (Layout a) | Besides (Layout a) (Layout 
 
 -- | Some nice combinators
 plot = An
+empty = plot (Text "")
 ($$) = Above
 (<>) = Besides
 
@@ -32,7 +33,7 @@ plot = An
 data Plot = Line Array | Scatter Array Array | Bar Array | Table [String] Array | Text String deriving (Eq, Show)
 
 -- | Compile the representations to strings that can be used on the web and in matplotlib
-compileMatplotlib, compileWeb :: Layout Plot -> String
+compileMatplotlib :: Layout Plot -> String
 compileMatplotlib layout = unlines $
                            ["import matplotlib.pyplot as plt",
                             "import numpy as np",
@@ -49,6 +50,9 @@ compileMatplotlib layout = unlines $
             (compileMatplotlibPlot plt)
             ++
             (compileLayout grid xs)
+
+-- | Compile a layout to a string representing it's javascript and a string representing it's html table
+compileWeb :: Layout Plot -> (String, String)
 compileWeb = undefined
 
 -- | Compile a plot
