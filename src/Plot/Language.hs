@@ -68,6 +68,7 @@ compileWeb p s = compileWebHelper (toList (positionsAndSpans p))
 
         htmlPreamble = ""
         htmlPostamble = ""
+        htmlhelper (Text txt, _, _) _ = "<p>"++txt++"</p>"
         htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'></div>"
 
         jshelper (plt, _, _) i = compileWebPlot plt i s
@@ -77,6 +78,7 @@ compileWebPlot :: Plot -> Int -> String -> String
 compileWebPlot (Line arr) i n = "plotLine("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Line')"
 compileWebPlot (Scatter arr arrr) i n = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'Scatter')"
 compileWebPlot (Bar arr) i n = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Bar')"
+compileWebPlot (Text _) _ _ = ""
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -96,12 +98,12 @@ compileWebArray (Range indx indxx arr) = (compileWebArray arr) ++ ".slice("++(co
 compileMatplotlibPlot :: Plot -> [String]
 compileMatplotlibPlot (Line arr) = ["plt.plot("++(compileMatplotlibArray arr)++")"]
 compileMatplotlibPlot (Scatter arr arrr) = ["plt.scatter("++(compileMatplotlibArray arr)++","++(compileMatplotlibArray arrr)++")"]
-compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++"0.5)",
+compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++",0.5)",
                                    "plt.xticks(np.array(range(len("++array++")))+0.25, np.array(range(len("++array++"))))"]
     where
         array = compileMatplotlibArray arr
 compileMatplotlibPlot (Table _ _) = undefined
-compileMatplotlibPlot (Text s) = ["plt.text(0, 1, "++(show s)++")"]
+compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, "++(show s)++")"]
 
 -- | Compile an index into a matplotlib string
 compileMatplotlibIndex :: Index -> String
