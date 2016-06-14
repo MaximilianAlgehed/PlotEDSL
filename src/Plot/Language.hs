@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFoldable #-}
+module Plot.Language where
 import Data.Foldable
 import Control.Monad.State
 
@@ -54,8 +55,8 @@ compileMatplotlib layout = unlines $
 
 -- | Compile a layout to a string representing it's javascript and a string representing it's html table
 -- | wrapped in a state monad to make sure every 
-compileWeb :: Layout Plot -> State Int (String, String)
-compileWeb p = compileWebHelper (toList (positionsAndSpans p))
+compileWeb :: Layout Plot -> String -> State Int (String, String)
+compileWeb p s = compileWebHelper (toList (positionsAndSpans p))
     where
         compileWebHelper :: [(Plot, (Int, Int), (Int, Int))] -> State Int (String, String)
         compileWebHelper ps = do
@@ -67,15 +68,15 @@ compileWeb p = compileWebHelper (toList (positionsAndSpans p))
 
         htmlPreamble = ""
         htmlPostamble = ""
-        htmlhelper _ i = "<div id='id"++(show i)++"' style='width 900px; height=500px'></div>"
+        htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'></div>"
 
-        jshelper (plt, _, _) i = compileWebPlot plt i
+        jshelper (plt, _, _) i = compileWebPlot plt i s
 
 -- | Compile a plot
-compileWebPlot :: Plot -> Int -> String
-compileWebPlot (Line arr) i = "plotLine("++(compileWebArray arr)++",document.getElementById(id"++(show i)++"),'Line')"
-compileWebPlot (Scatter arr arrr) i = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById(id"++(show i)++"),'Scatter')"
-compileWebPlot (Bar arr) i = "plotBar("++(compileWebArray arr)++",document.getElementById(id"++(show i)++"),'Bar')"
+compileWebPlot :: Plot -> Int -> String -> String
+compileWebPlot (Line arr) i n = "plotLine("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Line')"
+compileWebPlot (Scatter arr arrr) i n = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'Scatter')"
+compileWebPlot (Bar arr) i n = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Bar')"
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -152,3 +153,11 @@ positionsAndSpans layout = positionsHelper (0, 0) (spans layout)
         positionsHelper p (An (a, ps)) = An (a, p, ps)
         positionsHelper (y, x) (Above l l') = Above (positionsHelper (y, x) l) (positionsHelper (y+(height l), x) l')
         positionsHelper (y, x) (Besides l l') = Besides (positionsHelper (y, x) l) (positionsHelper (y, x+(width l)) l')
+
+compileAndSave :: String -> Layout Plot -> IO ()
+compileAndSave name plt = do
+                       let (js, html) = fst $ runState (compileWeb plt name) 0
+                       let py = compileMatplotlib plt
+                       writeFile (name++".js") js
+                       writeFile (name++".html") html
+                       writeFile (name++".py") py
