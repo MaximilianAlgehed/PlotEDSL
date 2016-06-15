@@ -23,7 +23,11 @@ len = Length
 range (a, b) arr = Range a b arr
 
 -- | Models data layouts
-data Layout a = An a | Above (Layout a) (Layout a) | Besides (Layout a) (Layout a) deriving (Eq, Show, Foldable)
+data Layout a = An a String | Above (Layout a) (Layout a) | Besides (Layout a) (Layout a) deriving (Eq, Show)
+
+toList' (An a s) = [(a, s)]
+toList' (Above x y) = toList' x ++ toList' y
+toList' (Besides x y) = toList' x ++ toList' y
 
 -- | Some nice combinators
 plot = An
@@ -42,12 +46,14 @@ compileMatplotlib layout = unlines $
                             "from matplotlib.backends.backend_pdf import PdfPages",
                             "def plot(arg, pdf):"]
                             ++ (map ("    "++) $
-                            ["plt.figure()"]++(compileLayout (gridSize layout) (toList (positionsAndSpans layout)))
+                            ["plt.figure()"]++(compileLayout (gridSize layout) (toList' (positionsAndSpans layout)))
                             ++ ["pdf.savefig()", "plt.close()"])
     where
         compileLayout _ [] = []
-        compileLayout grid ((plt, pos, spans):xs) =
+        compileLayout grid (((plt, pos, spans),s):xs) =
             ["plt.subplot2grid("++(show grid)++","++(show pos)++",rowspan="++(show (fst spans))++",colspan="++(show (snd spans))++")"]
+            ++
+            ["plt.title('"++s++"')"]
             ++
             (compileMatplotlibPlot plt)
             ++
@@ -56,9 +62,9 @@ compileMatplotlib layout = unlines $
 -- | Compile a layout to a string representing it's javascript and a string representing it's html table
 -- | wrapped in a state monad to make sure every 
 compileWeb :: Layout Plot -> String -> State Int (String, String)
-compileWeb p s = compileWebHelper (toList (positionsAndSpans p))
+compileWeb p s = compileWebHelper (toList' (positionsAndSpans p))
     where
-        compileWebHelper :: [(Plot, (Int, Int), (Int, Int))] -> State Int (String, String)
+        compileWebHelper :: [((Plot, (Int, Int), (Int, Int)), String)] -> State Int (String, String)
         compileWebHelper ps = do
             i <- get -- The first reference point
             put (i+length ps) -- The last reference point+1
@@ -68,17 +74,17 @@ compileWeb p s = compileWebHelper (toList (positionsAndSpans p))
 
         htmlPreamble = ""
         htmlPostamble = ""
-        htmlhelper (Text txt, _, _) _ = "<p>"++txt++"</p>"
+        htmlhelper ((Text txt, _, _), _) _ = "<p>"++txt++"</p>"
         htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'></div>"
 
-        jshelper (plt, _, _) i = compileWebPlot plt i s
+        jshelper ((plt, _, _), t) i = compileWebPlot plt i s t
 
 -- | Compile a plot
-compileWebPlot :: Plot -> Int -> String -> String
-compileWebPlot (Line arr) i n = "plotLine("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Line')"
-compileWebPlot (Scatter arr arrr) i n = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'Scatter')"
-compileWebPlot (Bar arr) i n = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'Bar')"
-compileWebPlot (Text _) _ _ = ""
+compileWebPlot :: Plot -> Int -> String -> String -> String
+compileWebPlot (Line arr) i n t = "plotLine("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+compileWebPlot (Scatter arr arrr) i n t = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+compileWebPlot (Bar arr) i n t = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+compileWebPlot (Text _) _ _ _ = ""
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -122,7 +128,7 @@ compileMatplotlibArray (Range indx indxx arr) =
 
 -- | Compute the granularity of the grid required by a layout
 gridSize :: Layout a -> (Int, Int)
-gridSize (An a)         = (1, 1)
+gridSize (An _ _)         = (1, 1)
 gridSize (Above l l')   = (y+y', max x x')
     where
         (y, x) = gridSize l
@@ -136,7 +142,7 @@ gridSize (Besides l l') = (max y y', x+x')
 spans :: Layout a -> Layout (a, (Int, Int))
 spans layout = spansHelper (gridSize layout) layout
     where
-        spansHelper p (An a)       = An (a, p)
+        spansHelper p (An a s)       = An (a, p) s
         spansHelper (y, x) (Above l l') = Above (spansHelper (y `div` 2, x) l) (spansHelper (y `div` 2, x) l')
         spansHelper (y, x) (Besides l l') = Besides (spansHelper (y, x`div`2) l) (spansHelper (y, x`div`2) l')
 
@@ -144,15 +150,15 @@ spans layout = spansHelper (gridSize layout) layout
 positionsAndSpans :: Layout a -> Layout (a, (Int, Int), (Int, Int))
 positionsAndSpans layout = positionsHelper (0, 0) (spans layout)
     where
-        height (An (a, (y, _))) = y
+        height (An (a, (y, _))_ ) = y
         height (Besides l l') = max (height l) (height l')
         height (Above l l') = (height l) + (height l')
 
-        width (An (a, (_, x))) = x
+        width (An (a, (_, x)) _) = x
         width (Besides l l') = (width l) + (width l')
         width (Above l l') = max (width l) (width l')
 
-        positionsHelper p (An (a, ps)) = An (a, p, ps)
+        positionsHelper p (An (a, ps) s) = An (a, p, ps) s
         positionsHelper (y, x) (Above l l') = Above (positionsHelper (y, x) l) (positionsHelper (y+(height l), x) l')
         positionsHelper (y, x) (Besides l l') = Besides (positionsHelper (y, x) l) (positionsHelper (y, x+(width l)) l')
 
