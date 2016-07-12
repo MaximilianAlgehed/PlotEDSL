@@ -36,7 +36,7 @@ empty = plot (Text "")
 (<>) = Besides
 
 -- | Models plots
-data Plot = Line Array | Scatter Array Array | Bar Array | Table [String] Array | Text String deriving (Eq, Show)
+data Plot = Line Array | Scatter Array Array | Bar Array | Table Array | Text String deriving (Eq, Show)
 
 -- | Compile the representations to strings that can be used on the web and in matplotlib
 compileMatplotlib :: Layout Plot -> String
@@ -75,7 +75,7 @@ compileWeb p s = compileWebHelper (toList' (positionsAndSpans p))
         htmlPreamble = ""
         htmlPostamble = ""
         htmlhelper ((Text txt, _, _), _) _ = "<p>"++txt++"</p>"
-        htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'></div>"
+        htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'><img src='resources/gears.gif'></img></div>"
 
         jshelper ((plt, _, _), t) i = compileWebPlot plt i s t
 
@@ -85,6 +85,7 @@ compileWebPlot (Line arr) i n t = "plotLine("++(compileWebArray arr)++",document
 compileWebPlot (Scatter arr arrr) i n t = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Bar arr) i n t = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Text _) _ _ _ = ""
+compileWebPlot (Table a) i n t = "plotTable("++(compileWebArray a)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -108,7 +109,7 @@ compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++",
                                    "plt.xticks(np.array(range(len("++array++")))+0.25, np.array(range(len("++array++"))))"]
     where
         array = compileMatplotlibArray arr
-compileMatplotlibPlot (Table _ _) = undefined
+compileMatplotlibPlot (Table _) = []
 compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, "++(show s)++")"]
 
 -- | Compile an index into a matplotlib string
