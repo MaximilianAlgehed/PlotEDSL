@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFoldable #-}
 module Plot.Language where
+import Control.Lens hiding (Index)
 import Data.Foldable
 import Control.Monad.State
 
@@ -59,6 +60,14 @@ compileMatplotlib layout = unlines $
             ++
             (compileLayout grid xs)
 
+type HTMLTable = [[String]]
+
+tableOfSize :: (Int, Int) -> HTMLTable
+tableOfSize (y, x) = replicate y (replicate x "")
+
+updateHTMLTable :: HTMLTable -> (Int, Int) -> String -> HTMLTable
+updateHTMLTable t p x = t & element (fst p) . element (snd p) .~ x
+
 -- | Compile a layout to a string representing it's javascript and a string representing it's html table
 -- | wrapped in a state monad to make sure every 
 compileWeb :: Layout Plot -> String -> State Int (String, String)
@@ -74,8 +83,9 @@ compileWeb p s = compileWebHelper (toList' (positionsAndSpans p))
 
         htmlPreamble = ""
         htmlPostamble = ""
-        htmlhelper ((Text txt, _, _), _) _ = "<p>"++txt++"</p>"
-        htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'><img src='resources/gears.gif'></img></div>"
+        htmlhelper ((Text txt, p, (c, r)), _) _ = "<p>"++txt++"</p>"
+        --htmlhelper t ((_, p, (c, r), _)) i =
+        --    updateHTMLTable t p $ "<div id='"++s++(show i)++"' rowspan='"++(show r)++"' colspan='"++(show c)++"' style='width 900px; height=500px'><img src='resources/gears.gif'></img></div>"
 
         jshelper ((plt, _, _), t) i = compileWebPlot plt i s t
 
