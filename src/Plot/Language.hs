@@ -36,13 +36,14 @@ empty = plot (Text "")
 (<>) = Besides
 
 -- | Models plots
-data Plot = Line Array | Scatter Array Array | Bar Array | Table Array | Text String deriving (Eq, Show)
+data Plot = Line Array | Scatter Array Array | Bar Array | Table [String] Array | Text String deriving (Eq, Show)
 
 -- | Compile the representations to strings that can be used on the web and in matplotlib
 compileMatplotlib :: Layout Plot -> String
 compileMatplotlib layout = unlines $
                            ["import matplotlib.pyplot as plt",
                             "import numpy as np",
+                            "from MakeTable import makeTable",
                             "from matplotlib.backends.backend_pdf import PdfPages",
                             "def plot(arg, pdf):"]
                             ++ (map ("    "++) $
@@ -85,7 +86,7 @@ compileWebPlot (Line arr) i n t = "plotLine("++(compileWebArray arr)++",document
 compileWebPlot (Scatter arr arrr) i n t = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Bar arr) i n t = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Text _) _ _ _ = ""
-compileWebPlot (Table a) i n t = "plotTable("++(compileWebArray a)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+compileWebPlot (Table headers a) i n t = "plotTable("++(show headers)++","++(compileWebArray a)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -109,7 +110,7 @@ compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++",
                                    "plt.xticks(np.array(range(len("++array++")))+0.25, np.array(range(len("++array++"))))"]
     where
         array = compileMatplotlibArray arr
-compileMatplotlibPlot (Table _) = []
+compileMatplotlibPlot (Table h arr) = ["plt.text(0,0,'')","makeTable("++(show h)++","++(compileMatplotlibArray arr)++",20,1,pdf)"]
 compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, "++(show s)++")"]
 
 -- | Compile an index into a matplotlib string
