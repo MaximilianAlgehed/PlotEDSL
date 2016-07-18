@@ -104,10 +104,11 @@ compileWebArray (Range indx indxx arr) = (compileWebArray arr) ++ ".slice("++(co
 
 -- | Compile a plot
 compileMatplotlibPlot :: Plot -> [String]
-compileMatplotlibPlot (Line arr) = ["plt.plot("++(compileMatplotlibArray arr)++")"]
+compileMatplotlibPlot (Line arr) = ["plt.plot("++(compileMatplotlibArray arr)++")",
+                                    "plt.xlim(0,len("++(compileMatplotlibArray arr)++"))"]
 compileMatplotlibPlot (Scatter arr arrr) = ["plt.scatter("++(compileMatplotlibArray arr)++","++(compileMatplotlibArray arrr)++")"]
-compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++",0.5)",
-                                   "plt.xticks(np.array(range(len("++array++")))+0.25, np.array(range(len("++array++"))))"]
+compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++")",
+                                   "plt.xlim(0,len("++array++"))"]
     where
         array = compileMatplotlibArray arr
 compileMatplotlibPlot (Table h arr) = ["plt.text(0,0,'')","makeTable("++(show h)++","++(compileMatplotlibArray arr)++",20,1,pdf)"]
