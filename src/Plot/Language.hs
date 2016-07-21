@@ -117,7 +117,7 @@ compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++")
 compileMatplotlibPlot (Table h arr) = ["makeTable("++(show' h)++","++(compileMatplotlibArray arr)++",20,1,pdf)"]
     where
         show' lst = "["++(concat $ intersperse "," (map (\s -> "'"++s++"'") lst))++"]"
-compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, '"++s++"')"]
+compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 0.9, '"++s++"')"]
 
 -- | Compile an index into a matplotlib string
 compileMatplotlibIndex :: Index -> String
