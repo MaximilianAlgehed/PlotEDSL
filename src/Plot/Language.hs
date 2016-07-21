@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFoldable #-}
 module Plot.Language where
+import Data.List
 import Data.Foldable
 import Control.Monad.State
 
@@ -73,8 +74,8 @@ compileWeb p s = compileWebHelper (toList' (positionsAndSpans p))
             let js = unlines $ zipWith jshelper ps [i..] 
             return (js, htmlPreamble++htmlTable++htmlPostamble)
 
-        htmlPreamble = "<div id='"++s++"'><button type='button' id='"++s++"btn'>Analys</button>"
-        htmlPostamble = "</div>"
+        htmlPreamble = "<div id='"++s++"'><button type='button' id='"++s++"btn'>{{name}}</button><div id='"++s++"content' style='display:none'> "
+        htmlPostamble = "</div></div>"
         htmlhelper ((Text txt, _, _), _) _ = "<p>"++txt++"</p>"
         htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'><img src='resources/gears.gif'></img></div>"
 
@@ -86,7 +87,9 @@ compileWebPlot (Line arr) i n t = "plotLine("++(compileWebArray arr)++",document
 compileWebPlot (Scatter arr arrr) i n t = "plotScatter("++(compileWebArray arr)++","++(compileWebArray arrr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Bar arr) i n t = "plotBar("++(compileWebArray arr)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
 compileWebPlot (Text _) _ _ _ = ""
-compileWebPlot (Table headers a) i n t = "plotTable("++(show headers)++","++(compileWebArray a)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+compileWebPlot (Table headers a) i n t = "plotTable("++(show' headers)++","++(compileWebArray a)++",document.getElementById('"++n++(show i)++"'),'"++t++"')"
+    where
+        show' lst = "["++(concat $ intersperse "," (map (\s -> "'"++s++"'") lst))++"]"
 
 -- | Compile an index
 compileWebIndex :: Index -> String
@@ -105,14 +108,16 @@ compileWebArray (Range indx indxx arr) = (compileWebArray arr) ++ ".slice("++(co
 -- | Compile a plot
 compileMatplotlibPlot :: Plot -> [String]
 compileMatplotlibPlot (Line arr) = ["plt.plot("++(compileMatplotlibArray arr)++")",
-                                    "plt.xlim(0,len("++(compileMatplotlibArray arr)++"))"]
+                                    "plt.xlim(0,len("++(compileMatplotlibArray arr)++")-1)"]
 compileMatplotlibPlot (Scatter arr arrr) = ["plt.scatter("++(compileMatplotlibArray arr)++","++(compileMatplotlibArray arrr)++")"]
 compileMatplotlibPlot (Bar arr) = ["plt.bar(range(len("++array++")),"++array++")",
-                                   "plt.xlim(0,len("++array++"))"]
+                                   "plt.xlim(0,len("++array++")-1)"]
     where
         array = compileMatplotlibArray arr
-compileMatplotlibPlot (Table h arr) = ["plt.text(0,0,'')","makeTable("++(show h)++","++(compileMatplotlibArray arr)++",20,1,pdf)"]
-compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, "++(show s)++")"]
+compileMatplotlibPlot (Table h arr) = ["makeTable("++(show' h)++","++(compileMatplotlibArray arr)++",20,1,pdf)"]
+    where
+        show' lst = "["++(concat $ intersperse "," (map (\s -> "'"++s++"'") lst))++"]"
+compileMatplotlibPlot (Text s) = ["plt.axis('off')", "plt.text(0, 1, '"++s++"')"]
 
 -- | Compile an index into a matplotlib string
 compileMatplotlibIndex :: Index -> String
@@ -168,7 +173,8 @@ positionsAndSpans layout = positionsHelper (0, 0) (spans layout)
 compileAndSave :: String -> Layout Plot -> IO ()
 compileAndSave name plt = do
                        let (js, html) = fst $ runState (compileWeb plt name) 0
-                       let py = compileMatplotlib plt
+                       let py = "# -*- coding: utf-8 -*-\n"++compileMatplotlib plt
+
                        writeFile (name++".js") js
                        writeFile (name++".html") html
                        writeFile (name++".py") py
