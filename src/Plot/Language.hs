@@ -74,7 +74,7 @@ compileWeb p s = compileWebHelper (toList' (positionsAndSpans p))
             let js = unlines $ zipWith jshelper ps [i..] 
             return (js, htmlPreamble++htmlTable++htmlPostamble)
 
-        htmlPreamble = "<div id='"++s++"'><button type='button' id='"++s++"btn'>{{name}}</button><div id='"++s++"content' style='display:none'> "
+        htmlPreamble = "<div id='"++s++"'><button type='button' id='"++s++"btn' class='btn btn-default'>{{name}}</button><div id='"++s++"content' style='display:none'> "
         htmlPostamble = "</div></div>"
         htmlhelper ((Text txt, _, _), _) _ = "<p>"++txt++"</p>"
         htmlhelper _ i = "<div id='"++s++(show i)++"' style='width 900px; height=500px'><img src='resources/gears.gif'></img></div>"
